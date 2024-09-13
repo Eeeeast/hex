@@ -8,10 +8,20 @@ struct Cli {
 }
 
 #[derive(Debug)]
+enum Index {
+    Data = 0,
+    End = 1,
+    AddressSegment = 2,
+    StartAddress80x86 = 3,
+    ExtendedAddress = 4,
+    LinearAdrres = 5,
+}
+
+#[derive(Debug)]
 struct Package {
     size: u8,
     address: u16,
-    index: u8,
+    index: Index,
     data: Vec<u8>,
     checksum: u8,
 }
@@ -22,7 +32,7 @@ fn main() {
     let mut data = Package {
         size: 0,
         address: 0,
-        index: 0,
+        index: Index::Data,
         data: vec![],
         checksum: 0,
     };
@@ -40,7 +50,15 @@ fn main() {
         }
     };
     data.index = match u8::from_str_radix(&cli.hex[7..9], 16) {
-        Ok(content) => content,
+        Ok(content) => match content {
+            0 => Index::Data,
+            1 => Index::End,
+            2 => Index::AddressSegment,
+            3 => Index::StartAddress80x86,
+            4 => Index::ExtendedAddress,
+            5 => Index::LinearAdrres,
+            _ => panic!("Cant deal with unexpected index"),
+        },
         Err(error) => {
             panic!("Can't deal with {}, just exit here", error)
         }
@@ -50,9 +68,7 @@ fn main() {
         data.data
             .push(match u8::from_str_radix(&cli.hex[i..i + 2], 16) {
                 Ok(content) => content,
-                Err(error) => {
-                    panic!("Can't deal with {}, just exit here", error);
-                }
+                Err(error) => panic!("Can't deal with {}, just exit here", error),
             });
     }
     if data.data.len() > 0 {
@@ -65,19 +81,17 @@ fn main() {
         16,
     ) {
         Ok(content) => content,
-        Err(error) => {
-            panic!("Can't deal with {}, just exit here", error);
-        }
+        Err(error) => panic!("Can't deal with {}, just exit here", error),
     };
 
     println!("{:?}", cli);
 
     println!(
-        "size: {}, address: {}, index: {}",
+        "size: {}, address: {:#x}, index: {:?}",
         data.size, data.address, data.index
     );
 
     for i in data.data {
-        println!("{number:0>width$b}", number = i, width = 8);
+        println!("{:#010b}", i);
     }
 }
