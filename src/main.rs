@@ -96,6 +96,13 @@ fn main() {
     loop {
         match iter.next() {
             Some((i, content)) => match content.0 {
+                0b00000000 => {
+                    if content.1 == 0b00000000 {
+                        println!("nop");
+                    } else {
+                        break;
+                    }
+                }
                 0b00100100..=0b00100111 => {
                     let r: u8 = (content.0 & 0b00000010).shl(3) + (content.1 & 0b00001111);
                     let d: u8 = (content.0 & 0b00000001).shl(4) + (content.1 & 0b11110000).shr(4);
@@ -104,6 +111,11 @@ fn main() {
                     } else {
                         println!("eor r{}, r{}", d, r);
                     }
+                }
+                0b01000000..=0b01001111 => {
+                    let k: u8 = (content.0 & 0b00001111).shl(4) + (content.1 & 0b00001111);
+                    let d: u8 = 16u8 + (content.1 & 0b11110000).shr(4);
+                    println!("sbci r{}, {:#x}", d, k);
                 }
                 0b01010000..=0b01011111 => {
                     let k: u8 = (content.0 & 0b00001111).shl(4) + (content.1 & 0b00001111);
@@ -132,7 +144,10 @@ fn main() {
                                 None => panic!("Can't deal with call decode"),
                             };
                         println!("call {:#x}; {:#x}", t, t);
-                    } else {
+                    } else if content.0 == 0b10010100 && content.1 == 0b11111000 {
+                        println!("cli");
+                    } 
+                    else {
                         break;
                     }
                 }
@@ -153,9 +168,15 @@ fn main() {
                 }
                 0b11000000..=0b11001111 => {
                     let k: i16 = (((content.0 & 0b00001111) as i16).shl(12) | (content.1 as i16).shl(4)) / 8i16;
-                    println!("rjmp .{:+#x} ; {:#x}", k,
-                        (data.address as usize + i * 2) as i32 + k as i32 + 2i32
-                    );
+                     if k < 0 {
+                            print!("rjmp .-{:#x}", k.abs());
+                        } else {
+                            print!("rjmp .+{:#x}", k)
+                        }
+                        println!(
+                            " ; {:#x}",
+                            (data.address as usize + i * 2) as i32 + k as i32 + 2i32,
+                        );
                 }
                 0b11100000..=0b11101111 => {
                     let d: u8 = 16u8 + (content.1 & 0b11110000).shr(4);
@@ -163,11 +184,31 @@ fn main() {
                     println!("ldi r{}, {:#x}", d, k);
                 }
                 0b11110000..=0b11110011 => {
-                    if (content.1 & 0b00000001) == 0b00000001 {
+                    if (content.1 & 0b00000111) == 0b00000001 {
                         let k: i8 = (content.0.shl(6) | (content.1 & 0b11111000).shr(2)) as i8;
+                         if k < 0 {
+                            print!("breq .-{:#x}", k.abs());
+                        } else {
+                            print!("breq .+{:#x}", k)
+                        }
                         println!(
-                            "breq .{:+#x} ; {:#x}",
-                            k,
+                            " ; {:#x}",
+                            (data.address as usize + i * 2) as i32 + k as i32 + 2i32,
+                        );
+                    } else {
+                        break;
+                    }
+                }
+                0b11110100..=0b11110111 => {
+                    if (content.1 & 0b00000111) ==  0b00000001 {
+                        let k: i8 = (content.0.shl(6) | (content.1 & 0b11111000).shr(2)) as i8;
+                        if k < 0 {
+                            print!("brne .-{:#x}", k.abs());
+                        } else {
+                            print!("brne .+{:#x}", k)
+                        }
+                        println!(
+                            " ; {:#x}",
                             (data.address as usize + i * 2) as i32 + k as i32 + 2i32,
                         );
                     } else {
