@@ -103,6 +103,11 @@ fn main() {
                         break;
                     }
                 }
+                0b00011100..=0b00011111 => {
+                    let d: u8 = (content.0 & 0b00000001).shl(4) + (content.1 & 0b11110000).shr(4);
+                    let r: u8 = (content.0 & 0b00000010).shl(3) + content.1 & 0b00001111;
+                    println!("adc r{}, r{}", d, r);
+                }
                 0b00100100..=0b00100111 => {
                     let r: u8 = (content.0 & 0b00000010).shl(3) + (content.1 & 0b00001111);
                     let d: u8 = (content.0 & 0b00000001).shl(4) + (content.1 & 0b11110000).shr(4);
