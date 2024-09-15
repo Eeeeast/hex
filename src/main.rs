@@ -1,4 +1,5 @@
 use clap::Parser;
+use std::ops::{Shl, Shr};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -85,7 +86,97 @@ fn main() {
         data.size, data.address, data.index
     );
 
-    for i in data.data {
+    for i in &data.data {
         println!("{:#010b} {:#010b}", i.0, i.1);
+    }
+
+    println!();
+
+    let mut iter = data.data.iter().enumerate();
+    loop {
+        match iter.next() {
+            Some((i, content)) => match content.0 {
+                0b00100100..=0b00100111 => {
+                    let r: u8 = (content.0 & 0b00000010).shl(3) + (content.1 & 0b00001111);
+                    let d: u8 = (content.0 & 0b00000001).shl(4) + (content.1 & 0b11110000).shr(4);
+                    if d == r {
+                        println!("clr r{}", r);
+                    } else {
+                        println!("eor r{}, r{}", d, r);
+                    }
+                }
+                0b01010000..=0b01011111 => {
+                    let k: u8 = (content.0 & 0b00001111).shl(4) + (content.1 & 0b00001111);
+                    let d: u8 = 16u8 + (content.1 & 0b11110000).shr(4);
+                    println!("subi r{}, {:#x}", d, k);
+                }
+                0b10010100..=0b10010101 => {
+                    if content.1 & 0b00001110 == 0b00001100 {
+                        let t: u32 = ((content.0 & 0b00000001) as u32).shl(22)
+                            + ((content.1 & 0b11110001) as u32).shl(17)
+                            + match iter.next() {
+                                Some((_, content)) => {
+                                    ((content.0 as u32).shl(9) + (content.1 as u32).shl(1)) as u32
+                                }
+                                None => panic!("Can't deal with jmp decode"),
+                            };
+
+                        println!("jmp {:#x} ; {:#x}", t, t);
+                    } else if content.1 & 0b00001110 == 0b00001110 {
+                        let t: u32 = ((content.0 & 0b00000001) as u32).shl(22)
+                            + ((content.1 & 0b11110001) as u32).shl(17)
+                            + match iter.next() {
+                                Some((_, content)) => {
+                                    ((content.0 as u32).shl(9) + (content.1 as u32).shl(1)) as u32
+                                }
+                                None => panic!("Can't deal with call decode"),
+                            };
+                        println!("call {:#x}; {:#x}", t, t);
+                    } else {
+                        break;
+                    }
+                }
+                0b10011000 => {
+                    let a: u8 = (content.1 & 0b11111000).shr(3);
+                    let b: u8 = content.1 & 0b00000111;
+                    println!("cbi {:#x}, {}", a, b);
+                }
+                0b10011010 => {
+                    let a: u8 = (content.1 & 0b11111000).shr(3);
+                    let b: u8 = content.1 & 0b00000111;
+                    println!("sbi {:#x}, {}", a, b);
+                }
+                0b10111000..=0b10111111 => {
+                    let a: u8 = (content.0 & 0b00000110).shl(3) + (content.1 & 0b00001111);
+                    let r: u8 = (content.0 & 0b00000001).shl(4) + (content.1 & 0b11110000).shr(4);
+                    println!("out {:#x}, r{}", a, r);
+                }
+                0b11000000..=0b11001111 => {
+                    let k: i16 = (((content.0 & 0b00001111) as i16).shl(12) | (content.1 as i16).shl(4)) / 8i16;
+                    println!("rjmp .{:+#x} ; {:#x}", k,
+                        (data.address as usize + i * 2) as i32 + k as i32 + 2i32
+                    );
+                }
+                0b11100000..=0b11101111 => {
+                    let d: u8 = 16u8 + (content.1 & 0b11110000).shr(4);
+                    let k: u8 = (content.0 & 0b00001111).shl(4) + (content.1 & 0b00001111);
+                    println!("ldi r{}, {:#x}", d, k);
+                }
+                0b11110000..=0b11110011 => {
+                    if (content.1 & 0b00000001) == 0b00000001 {
+                        let k: i8 = (content.0.shl(6) | (content.1 & 0b11111000).shr(2)) as i8;
+                        println!(
+                            "breq .{:+#x} ; {:#x}",
+                            k,
+                            (data.address as usize + i * 2) as i32 + k as i32 + 2i32,
+                        );
+                    } else {
+                        break;
+                    }
+                }
+                _ => break,
+            },
+            None => break,
+        }
     }
 }
