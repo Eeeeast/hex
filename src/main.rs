@@ -27,6 +27,41 @@ struct Package {
     checksum: u8,
 }
 
+impl Package {
+    fn new(hex: String) -> Self {
+        Self {
+            size: match u8::from_str_radix(&hex[1..3], 16) {
+                Ok(content) => content,
+                Err(error) => panic!("Can't deal with {}, just exit here", error),
+            },
+            address: match u16::from_str_radix(&hex[3..7], 16) {
+                Ok(content) => content,
+                Err(error) => panic!("Can't deal with {}, just exit here", error),
+            },
+            index: match u8::from_str_radix(&hex[7..9], 16) {
+                Ok(content) => match content {
+                    0 => Index::Data,
+                    1 => Index::End,
+                    2 => Index::AddressSegment,
+                    3 => Index::StartAddress80x86,
+                    4 => Index::ExtendedAddress,
+                    5 => Index::LinearAdrres,
+                    _ => panic!("Can't deal with unexpected index"),
+                },
+                Err(error) => panic!("Can't deal with {}, just exit here", error),
+            },
+            data: vec![],
+            checksum: match u8::from_str_radix(
+                &hex[9 + (size as usize) * 2..9 + (size as usize) * 2 + 2],
+                16,
+            ) {
+                Ok(content) => content,
+                Err(error) => panic!("Can't deal with {}, just exit here", error),
+            },
+        }
+    }
+}
+
 fn main() {
     let cli: Cli = Cli::parse();
 
