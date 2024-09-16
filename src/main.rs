@@ -28,8 +28,8 @@ struct Package {
 }
 
 impl Package {
-    fn new(hex: String) -> Self {
-        Self {
+    fn from_str(hex: &String) -> Package {
+        let mut data: Package = Package {
             size: match u8::from_str_radix(&hex[1..3], 16) {
                 Ok(content) => content,
                 Err(error) => panic!("Can't deal with {}, just exit here", error),
@@ -51,68 +51,35 @@ impl Package {
                 Err(error) => panic!("Can't deal with {}, just exit here", error),
             },
             data: vec![],
-            checksum: match u8::from_str_radix(
-                &hex[9 + (size as usize) * 2..9 + (size as usize) * 2 + 2],
-                16,
-            ) {
-                Ok(content) => content,
-                Err(error) => panic!("Can't deal with {}, just exit here", error),
-            },
+            checksum: 0,
+        };
+        data.data.reserve(data.size as usize * 2);
+        for i in (9..9 + (data.size as usize * 2)).step_by(4) {
+            data.data.push((
+                match u8::from_str_radix(&hex[i + 2..i + 4], 16) {
+                    Ok(content) => content,
+                    Err(error) => panic!("Can't deal with {}, just exit here", error),
+                },
+                match u8::from_str_radix(&hex[i..i + 2], 16) {
+                    Ok(content) => content,
+                    Err(error) => panic!("Can't deal with {}, just exit here", error),
+                },
+            ));
         }
+        data.checksum = match u8::from_str_radix(
+            &hex[9 + (data.size as usize) * 2..9 + (data.size as usize) * 2 + 2],
+            16,
+        ) {
+            Ok(content) => content,
+            Err(error) => panic!("Can't deal with {}, just exit here", error),
+        };
+        return data;
     }
 }
 
 fn main() {
     let cli: Cli = Cli::parse();
-
-    let mut data = Package {
-        size: 0,
-        address: 0,
-        index: Index::Data,
-        data: vec![],
-        checksum: 0,
-    };
-
-    data.size = match u8::from_str_radix(&cli.hex[1..3], 16) {
-        Ok(content) => content,
-        Err(error) => panic!("Can't deal with {}, just exit here", error),
-    };
-    data.address = match u16::from_str_radix(&cli.hex[3..7], 16) {
-        Ok(content) => content,
-        Err(error) => panic!("Can't deal with {}, just exit here", error),
-    };
-    data.index = match u8::from_str_radix(&cli.hex[7..9], 16) {
-        Ok(content) => match content {
-            0 => Index::Data,
-            1 => Index::End,
-            2 => Index::AddressSegment,
-            3 => Index::StartAddress80x86,
-            4 => Index::ExtendedAddress,
-            5 => Index::LinearAdrres,
-            _ => panic!("Cant deal with unexpected index"),
-        },
-        Err(error) => panic!("Can't deal with {}, just exit here", error),
-    };
-    data.data.reserve(data.size as usize * 2);
-    for i in (9..9 + (data.size as usize * 2)).step_by(4) {
-        data.data.push((
-            match u8::from_str_radix(&cli.hex[i + 2..i + 4], 16) {
-                Ok(content) => content,
-                Err(error) => panic!("Can't deal with {}, just exit here", error),
-            },
-            match u8::from_str_radix(&cli.hex[i..i + 2], 16) {
-                Ok(content) => content,
-                Err(error) => panic!("Can't deal with {}, just exit here", error),
-            },
-        ));
-    }
-    data.checksum = match u8::from_str_radix(
-        &cli.hex[9 + (data.size as usize) * 2..9 + (data.size as usize) * 2 + 2],
-        16,
-    ) {
-        Ok(content) => content,
-        Err(error) => panic!("Can't deal with {}, just exit here", error),
-    };
+    let data = Package::from_str(&cli.hex);
 
     println!("{:?}", cli);
 
