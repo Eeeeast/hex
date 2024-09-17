@@ -111,6 +111,14 @@ impl fmt::Display for Package {
     }
 }
 
+/// for mask 0b0000_00rd_dddd_rrrr
+fn combine_bytes_0(word: &Word) -> (u8, u8) {
+    (
+        (word.0 & 0b00000001).shl(4) + (word.1 & 0b11110000).shr(4),
+        (word.0 & 0b00000010).shl(3) + (word.1 & 0b00001111),
+    )
+}
+
 fn main() {
     let cli: Cli = Cli::parse();
     let data = Package::from_str(&cli.hex);
@@ -131,15 +139,13 @@ fn main() {
                     }
                 }
                 0b00011100..=0b00011111 => {
-                    let d: u8 = (content.0 & 0b00000001).shl(4) + (content.1 & 0b11110000).shr(4);
-                    let r: u8 = (content.0 & 0b00000010).shl(3) + (content.1 & 0b00001111);
+                    let (d, r) = combine_bytes_0(content);
                     println!("adc r{}, r{}", d, r);
                 }
                 0b00100100..=0b00100111 => {
-                    let r: u8 = (content.0 & 0b00000010).shl(3) + (content.1 & 0b00001111);
-                    let d: u8 = (content.0 & 0b00000001).shl(4) + (content.1 & 0b11110000).shr(4);
+                    let (d, r) = combine_bytes_0(content);
                     if d == r {
-                        println!("clr r{}", r);
+                        println!("clr r{}", d);
                     } else {
                         println!("eor r{}, r{}", d, r);
                     }
