@@ -1,5 +1,8 @@
 use clap::Parser;
-use std::ops::{Shl, Shr};
+use std::{
+    fmt,
+    ops::{Shl, Shr},
+};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -18,12 +21,13 @@ enum Index {
     LinearAdrres = 5,
 }
 
-#[derive(Debug)]
+struct Word(u8, u8);
+
 struct Package {
     size: u8,
     address: u16,
     index: Index,
-    data: Vec<(u8, u8)>,
+    data: Vec<Word>,
     checksum: u8,
 }
 
@@ -55,7 +59,7 @@ impl Package {
         };
         data.data.reserve(data.size as usize * 2);
         for i in (9..9 + (data.size as usize * 2)).step_by(4) {
-            data.data.push((
+            data.data.push(Word(
                 match u8::from_str_radix(&hex[i + 2..i + 4], 16) {
                     Ok(content) => content,
                     Err(error) => panic!("Can't deal with {}, just exit here", error),
@@ -77,21 +81,42 @@ impl Package {
     }
 }
 
+impl fmt::Display for Word {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "({:#010b}, {:#010b})", self.0, self.1)
+    }
+}
+
+impl fmt::Display for Package {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut result = writeln!(
+            f,
+            "size: {}, address: {:#x}, index: {:?},",
+            self.size, self.address, self.index
+        );
+        if self.data.len() > 0 && result == Ok(()) {
+            result = writeln!(f, "data: ");
+            for i in &self.data {
+                if result == Ok(()) {
+                    result = writeln!(f, "{}, ", i);
+                } else {
+                    return result;
+                }
+            }
+        }
+        if result == Ok(()) {
+            result = write!(f, "checksum: {}", self.checksum);
+        }
+        result
+    }
+}
+
 fn main() {
     let cli: Cli = Cli::parse();
     let data = Package::from_str(&cli.hex);
 
     println!("{:?}", cli);
-
-    println!(
-        "size: {}, address: {:#x}, index: {:?}",
-        data.size, data.address, data.index
-    );
-
-    for i in &data.data {
-        println!("{:#010b} {:#010b}", i.0, i.1);
-    }
-
+    println!("{}", data);
     println!();
 
     let mut iter = data.data.iter().enumerate();
