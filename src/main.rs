@@ -11,6 +11,120 @@ struct Cli {
     hex: String,
 }
 
+enum Instuction {
+    Adc,
+    Add,
+    Adiw,
+    And,
+    Andi,
+    Asr,
+    Bclr,
+    Bld,
+    Brbc,
+    Brbs,
+    Brcc,
+    Brcs,
+    Break,
+    Breq,
+    Brge,
+    Brhc,
+    Brhs,
+    Brid,
+    Brie,
+    Brlo,
+    Brlt,
+    Brmi,
+    Brne,
+    Brpl,
+    Brsh,
+    Brtc,
+    Brts,
+    Brvc,
+    Brvs,
+    Bset,
+    Bst,
+    Call,
+    Cbi,
+    Cbr,
+    Clc,
+    Clh,
+    Cli,
+    Cln,
+    Clr,
+    Cls,
+    Clt,
+    Clv,
+    Clz,
+    Com,
+    Cp,
+    Cpc,
+    Cpi,
+    Cpse,
+    Dec,
+    Eicall,
+    Eijmp,
+    Elpm,
+    Eor,
+    Fmul,
+    Fmuls,
+    Fmulsu,
+    Icall,
+    Ijmp,
+    In,
+    Inc,
+    Jmp,
+    Ld,
+    Ldi,
+    Lds,
+    Lpm,
+    Lsl,
+    Lsr,
+    Mov,
+    Movw,
+    Mul,
+    Muls,
+    Mulsu,
+    Neg,
+    Nop,
+    Or,
+    Ori,
+    Out,
+    Pop,
+    Push,
+    Rcall,
+    Ret,
+    Reti,
+    Rjmp,
+    Rol,
+    Ror,
+    Sbc,
+    Sbci,
+    Sbi,
+    Sbic,
+    Sbis,
+    Sbiw,
+    Sbr,
+    Sbrs,
+    Sec,
+    Seh,
+    Sei,
+    Sen,
+    Ser,
+    Ses,
+    Set,
+    Sev,
+    Sez,
+    Sleep,
+    Spm,
+    St,
+    Sts,
+    Sub,
+    Subi,
+    Swap,
+    Tst,
+    Wdr,
+}
+
 #[derive(Debug)]
 enum Index {
     Data = 0,
@@ -24,7 +138,6 @@ enum Index {
 struct Word(u8, u8);
 
 struct Package {
-    size: u8,
     address: u16,
     index: Index,
     data: Vec<Word>,
@@ -34,10 +147,6 @@ struct Package {
 impl Package {
     fn from_str(hex: &String) -> Package {
         let mut data: Package = Package {
-            size: match u8::from_str_radix(&hex[1..3], 16) {
-                Ok(content) => content,
-                Err(error) => panic!("Can't deal with {}, just exit here", error),
-            },
             address: match u16::from_str_radix(&hex[3..7], 16) {
                 Ok(content) => content,
                 Err(error) => panic!("Can't deal with {}, just exit here", error),
@@ -57,8 +166,12 @@ impl Package {
             data: vec![],
             checksum: 0,
         };
-        data.data.reserve(data.size as usize * 2);
-        for i in (9..9 + (data.size as usize * 2)).step_by(4) {
+        data.data
+            .reserve(match usize::from_str_radix(&hex[1..3], 16) {
+                Ok(content) => content,
+                Err(error) => panic!("Can't deal with {}, just exit here", error),
+            });
+        for i in (9..9 + (data.data.capacity() * 2)).step_by(4) {
             data.data.push(Word(
                 match u8::from_str_radix(&hex[i + 2..i + 4], 16) {
                     Ok(content) => content,
@@ -71,7 +184,7 @@ impl Package {
             ));
         }
         data.checksum = match u8::from_str_radix(
-            &hex[9 + (data.size as usize) * 2..9 + (data.size as usize) * 2 + 2],
+            &hex[9 + data.data.len() * 2..9 + data.data.len() * 2 + 2],
             16,
         ) {
             Ok(content) => content,
@@ -92,7 +205,9 @@ impl fmt::Display for Package {
         let mut result = writeln!(
             f,
             "size: {}, address: {:#x}, index: {:?},",
-            self.size, self.address, self.index
+            self.data.len(),
+            self.address,
+            self.index
         );
         if self.data.len() > 0 && result == Ok(()) {
             result = writeln!(f, "data: ");
@@ -111,14 +226,6 @@ impl fmt::Display for Package {
     }
 }
 
-/// for mask 0b0000_00rd_dddd_rrrr
-fn combine_bytes_0(word: &Word) -> (u8, u8) {
-    (
-        (word.0 & 0b00000001).shl(4) + (word.1 & 0b11110000).shr(4),
-        (word.0 & 0b00000010).shl(3) + (word.1 & 0b00001111),
-    )
-}
-
 fn main() {
     let cli: Cli = Cli::parse();
     let data = Package::from_str(&cli.hex);
@@ -130,134 +237,7 @@ fn main() {
     let mut iter = data.data.iter().enumerate();
     loop {
         match iter.next() {
-            Some((i, content)) => match content.0 {
-                0b00000000 => {
-                    if content.1 == 0b00000000 {
-                        println!("nop");
-                    } else {
-                        break;
-                    }
-                }
-                0b00011100..=0b00011111 => {
-                    let (d, r) = combine_bytes_0(content);
-                    println!("adc r{}, r{}", d, r);
-                }
-                0b00100100..=0b00100111 => {
-                    let (d, r) = combine_bytes_0(content);
-                    if d == r {
-                        println!("clr r{}", d);
-                    } else {
-                        println!("eor r{}, r{}", d, r);
-                    }
-                }
-                0b01000000..=0b01001111 => {
-                    let k: u8 = (content.0 & 0b00001111).shl(4) + (content.1 & 0b00001111);
-                    let d: u8 = 16u8 + (content.1 & 0b11110000).shr(4);
-                    println!("sbci r{}, {:#x}", d, k);
-                }
-                0b01010000..=0b01011111 => {
-                    let k: u8 = (content.0 & 0b00001111).shl(4) + (content.1 & 0b00001111);
-                    let d: u8 = 16u8 + (content.1 & 0b11110000).shr(4);
-                    println!("subi r{}, {:#x}", d, k);
-                }
-                0b10010100..=0b10010101 => {
-                    if content.1 & 0b00001110 == 0b00001100 {
-                        let t: u32 = ((content.0 & 0b00000001) as u32).shl(22)
-                            + ((content.1 & 0b11110001) as u32).shl(17)
-                            + match iter.next() {
-                                Some((_, content)) => {
-                                    ((content.0 as u32).shl(9) + (content.1 as u32).shl(1)) as u32
-                                }
-                                None => panic!("Can't deal with jmp decode"),
-                            };
-
-                        println!("jmp {:#x} ; {:#x}", t, t);
-                    } else if content.1 & 0b00001110 == 0b00001110 {
-                        let t: u32 = ((content.0 & 0b00000001) as u32).shl(22)
-                            + ((content.1 & 0b11110001) as u32).shl(17)
-                            + match iter.next() {
-                                Some((_, content)) => {
-                                    ((content.0 as u32).shl(9) + (content.1 as u32).shl(1)) as u32
-                                }
-                                None => panic!("Can't deal with call decode"),
-                            };
-                        println!("call {:#x}; {:#x}", t, t);
-                    } else if content.0 == 0b10010100 && content.1 == 0b11111000 {
-                        println!("cli");
-                    } else {
-                        break;
-                    }
-                }
-                0b10011000 => {
-                    let a: u8 = (content.1 & 0b11111000).shr(3);
-                    let b: u8 = content.1 & 0b00000111;
-                    println!("cbi {:#x}, {}", a, b);
-                }
-                0b10011010 => {
-                    let a: u8 = (content.1 & 0b11111000).shr(3);
-                    let b: u8 = content.1 & 0b00000111;
-                    println!("sbi {:#x}, {}", a, b);
-                }
-                0b10111000..=0b10111111 => {
-                    let a: u8 = (content.0 & 0b00000110).shl(3) + (content.1 & 0b00001111);
-                    let r: u8 = (content.0 & 0b00000001).shl(4) + (content.1 & 0b11110000).shr(4);
-                    println!("out {:#x}, r{}", a, r);
-                }
-                0b11000000..=0b11001111 => {
-                    let k: i16 = (((content.0 & 0b00001111) as i16).shl(12)
-                        | (content.1 as i16).shl(4))
-                        / 8i16;
-                    if k < 0 {
-                        print!("rjmp .-{:#x}", k.abs());
-                    } else {
-                        print!("rjmp .+{:#x}", k)
-                    }
-                    println!(
-                        " ; {:#x}",
-                        (data.address as usize + i * 2) as i32 + k as i32 + 2i32,
-                    );
-                }
-                0b11100000..=0b11101111 => {
-                    let d: u8 = 16u8 + (content.1 & 0b11110000).shr(4);
-                    let k: u8 = (content.0 & 0b00001111).shl(4) + (content.1 & 0b00001111);
-                    println!("ldi r{}, {:#x}", d, k);
-                }
-                0b11110000..=0b11110011 => {
-                    if (content.1 & 0b00000111) == 0b00000001 {
-                        let k: i8 = (content.0.shl(6) | (content.1 & 0b11111000).shr(2)) as i8;
-                        if k < 0 {
-                            print!("breq .-{:#x}", k.abs());
-                        } else {
-                            print!("breq .+{:#x}", k)
-                        }
-                        println!(
-                            " ; {:#x}",
-                            (data.address as usize + i * 2) as i32 + k as i32 + 2i32,
-                        );
-                    } else {
-                        break;
-                    }
-                }
-                0b11110100..=0b11110111 => {
-                    if (content.1 & 0b00000111) == 0b00000001 {
-                        let k: i8 = ((content.0 & 0b00000011).shl(6)
-                            | (content.1 & 0b11111000).shr(2))
-                            as i8;
-                        if k < 0 {
-                            print!("brne .-{:#x}", k.abs());
-                        } else {
-                            print!("brne .+{:#x}", k)
-                        }
-                        println!(
-                            " ; {:#x}",
-                            (data.address as usize + i * 2) as i32 + k as i32 + 2i32,
-                        );
-                    } else {
-                        break;
-                    }
-                }
-                _ => break,
-            },
+            Some((i, content)) => {}
             None => break,
         }
     }
