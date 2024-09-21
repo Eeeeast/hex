@@ -1,14 +1,14 @@
 use clap::Parser;
-use std::{
-    fmt,
-    ops::{Shl, Shr},
-};
+use std::fmt;
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
 struct Cli {
     /// Hex code
     hex: String,
+    /// Advanced
+    #[arg(short, long, default_value_t = false)]
+    advanced: bool,
 }
 
 enum Instuction {
@@ -213,7 +213,7 @@ impl fmt::Display for Package {
             result = writeln!(f, "data: ");
             for i in &self.data {
                 if result == Ok(()) {
-                    result = writeln!(f, "{}, ", i);
+                    result = writeln!(f, "    {}, ", i);
                 } else {
                     return result;
                 }
@@ -230,14 +230,19 @@ fn main() {
     let cli: Cli = Cli::parse();
     let data = Package::from_str(&cli.hex);
 
-    println!("{:?}", cli);
-    println!("{}", data);
-    println!();
+    if cli.advanced {
+        println!("{:?}", cli);
+        println!("{}", data);
+        println!();
+    }
 
     let mut iter = data.data.iter().enumerate();
     loop {
         match iter.next() {
-            Some((i, content)) => {}
+            Some((i, content)) => match content.0 {
+                0b00001100..=0b00001111 => {}
+                _ => {}
+            },
             None => break,
         }
     }
