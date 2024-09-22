@@ -11,120 +11,6 @@ struct Cli {
     advanced: bool,
 }
 
-enum Instuction {
-    Adc,
-    Add,
-    Adiw,
-    And,
-    Andi,
-    Asr,
-    Bclr,
-    Bld,
-    Brbc,
-    Brbs,
-    Brcc,
-    Brcs,
-    Break,
-    Breq,
-    Brge,
-    Brhc,
-    Brhs,
-    Brid,
-    Brie,
-    Brlo,
-    Brlt,
-    Brmi,
-    Brne,
-    Brpl,
-    Brsh,
-    Brtc,
-    Brts,
-    Brvc,
-    Brvs,
-    Bset,
-    Bst,
-    Call,
-    Cbi,
-    Cbr,
-    Clc,
-    Clh,
-    Cli,
-    Cln,
-    Clr,
-    Cls,
-    Clt,
-    Clv,
-    Clz,
-    Com,
-    Cp,
-    Cpc,
-    Cpi,
-    Cpse,
-    Dec,
-    Eicall,
-    Eijmp,
-    Elpm,
-    Eor,
-    Fmul,
-    Fmuls,
-    Fmulsu,
-    Icall,
-    Ijmp,
-    In,
-    Inc,
-    Jmp,
-    Ld,
-    Ldi,
-    Lds,
-    Lpm,
-    Lsl,
-    Lsr,
-    Mov,
-    Movw,
-    Mul,
-    Muls,
-    Mulsu,
-    Neg,
-    Nop,
-    Or,
-    Ori,
-    Out,
-    Pop,
-    Push,
-    Rcall,
-    Ret,
-    Reti,
-    Rjmp,
-    Rol,
-    Ror,
-    Sbc,
-    Sbci,
-    Sbi,
-    Sbic,
-    Sbis,
-    Sbiw,
-    Sbr,
-    Sbrs,
-    Sec,
-    Seh,
-    Sei,
-    Sen,
-    Ser,
-    Ses,
-    Set,
-    Sev,
-    Sez,
-    Sleep,
-    Spm,
-    St,
-    Sts,
-    Sub,
-    Subi,
-    Swap,
-    Tst,
-    Wdr,
-}
-
 #[derive(Debug)]
 enum Index {
     Data = 0,
@@ -236,13 +122,67 @@ fn main() {
         println!();
     }
 
-    let mut iter = data.data.iter().enumerate();
+    if data.data.len() == 0 {
+        return;
+    }
+    let mut iter = data.data.into_iter().enumerate();
     loop {
         match iter.next() {
-            Some((i, content)) => match content.0 {
-                0b00001100..=0b00001111 => {}
-                _ => {}
-            },
+            Some((i, content)) => {
+                print!("{:#x}: ", data.address as usize + i);
+                match content.0 {
+                    0b0000_1100..=0b0000_1111 => {
+                        println!("add");
+                    }
+                    0b0010_0000..=0b0010_0011 => {
+                        println!("and");
+                    }
+                    0b0111_0000..=0b0111_1111 => {
+                        println!("andi");
+                    }
+                    0b1001_0100 => {
+                        if content.1 & 0b1000_1111 == 0b1000_1000 {
+                            println!("bclr");
+                        } else if content.1 & 0b0000_1111 == 0b0000_0101 {
+                            println!("asr");
+                        }
+                    }
+                    0b1001_0101 => {
+                        if content.1 & 0b0000_1111 == 0b0000_0101 {
+                            println!("asr");
+                        } else if content.1 & 0b1111_1111 == 0b1001_1000 {
+                            println!("break");
+                        }
+                    }
+                    0b1001_0110 => {
+                        println!("adiw");
+                    }
+                    0b1111_0000..=0b1111_0011 => {
+                        if content.1 & 0b0000_0111 == 0b0000_0000 {
+                            println!("brcs");
+                        } else if content.1 & 0b0000_0111 == 0b0000_0001 {
+                            println!("breq");
+                        } else {
+                            println!("brbs");
+                        }
+                    }
+                    0b1111_0100..=0b1111_0111 => {
+                        if content.1 & 0b0000_0111 == 0b0000_0000 {
+                            println!("brcc");
+                        } else if content.1 & 0b0000_0111 == 0b0000_0100 {
+                            println!("brge");
+                        } else {
+                            println!("brbc");
+                        }
+                    }
+                    0b1111_1000..=0b1111_1001 => {
+                        if content.1 & 0b0000_1000 == 0b0000_0000 {
+                            println!("bld");
+                        }
+                    }
+                    _ => break,
+                };
+            }
             None => break,
         }
     }
