@@ -10,6 +10,9 @@ struct Cli {
     /// Advanced
     #[arg(short, long, default_value_t = false)]
     advanced: bool,
+    /// Operator overloading
+    #[arg(short, long, default_value_t = true)]
+    overloads: bool,
 }
 
 #[derive(Debug)]
@@ -123,12 +126,416 @@ fn main() {
     loop {
         match iter.next() {
             Some((i, content)) => {
-                print!("{:#x}: ", data.address as usize + i);
+                print!("{:#x}: ", data.address + (i as u16) * 2);
                 #[bitmatch]
-                match content.0 as u16 * u8::MAX as u16 + content.1 as u16 {
-                    "0000_11rd_dddd_rrrr" => println!("add r{}, r{}", d, r),
-                    "0001_11rd_dddd_rrrr" => println!("adc r{}, r{}", d, r),
-                    _ => break,
+                match u16::from_be_bytes([content.0, content.1]) {
+                    "0000_0000_0000_0000" => println!("nop"),
+                    "0000_0001_dddd_rrrr" => {
+                        println!("movw r{}:{}, r{}:{}", d * 2 + 1, d * 2, r * 2 + 1, r * 2)
+                    }
+                    "0000_0010_dddd_rrrr" => println!("muls r{}, r{}", d + 16, r + 16),
+                    "0000_0011_0ddd_0rrr" => println!("mulsu r{}, r{}", d + 16, r + 16),
+                    "0000_0011_0ddd_1rrr" => println!("fmul r{}, r{}", d + 16, r + 16),
+                    "0000_0011_1ddd_0rrr" => println!("fmuls r{}, r{}", d + 16, r + 16),
+                    "0000_0011_1ddd_1rrr" => println!("fmulsu r{}, r{}", d + 16, r + 16),
+                    "0000_01rd_dddd_rrrr" => println!("cpc r{}, r{}", d, r),
+                    "0000_10rd_dddd_rrrr" => println!("sbc r{}, r{}", d, r),
+                    "0000_11rd_dddd_rrrr" => match (d == r) && cli.advanced {
+                        true => println!("lsl r{}", d),
+                        false => println!("add r{}, r{}", d, r),
+                    },
+                    "0001_00rd_dddd_rrrr" => println!("cpse r{}, r{}", d, r),
+                    "0001_01rd_dddd_rrrr" => println!("cp r{}, r{}", d, r),
+                    "0001_10rd_dddd_rrrr" => println!("sub r{}, r{}", d, r),
+                    "0001_11rd_dddd_rrrr" => match (d == r) && cli.advanced {
+                        true => println!("rol r{}", d),
+                        false => println!("adc r{}, r{}", d, r),
+                    },
+                    "0010_00rd_dddd_rrrr" => match (d == r) && cli.advanced {
+                        true => println!("tst r{}", d),
+                        false => println!("and r{}, r{}", d, r),
+                    },
+                    "0010_01rd_dddd_rrrr" => match (d == r) && cli.advanced {
+                        true => println!("clr r{}", d),
+                        false => println!("eor r{}, r{}", d, r),
+                    },
+                    "0010_10rd_dddd_rrrr" => println!("or r{}, r{}", d, r),
+                    "0010_11rd_dddd_rrrr" => println!("mov r{}, r{}", d, r),
+                    "0011_kkkk_dddd_kkkk" => println!("cpi, r{}, {}", d + 16, k),
+                    "0100_kkkk_dddd_kkkk" => println!("sbci r{}, {}", d + 16, k),
+                    "0101_kkkk_dddd_kkkk" => println!("subi r{}, {:#x}", d, k),
+                    "0110_kkkk_dddd_kkkk" => println!("ori r{}, {:#x}", d + 16, k),
+                    "0111_kkkk_dddd_kkkk" => println!("andi r{}, {:#x}", d + 16, k),
+                    "1000_000d_dddd_0000" => println!("ld r{}, Z", d),
+                    "1000_000d_dddd_1000" => println!("ld r{}, Y", d),
+                    "1000_001r_rrrr_0000" => println!("st Z, r{}", r),
+                    "1000_001r_rrrr_1000" => println!("st Y, r{}", r),
+                    "1000_001r_rrrr_1001" => println!("st Y+, r{}", r),
+                    "1000_001r_rrrr_1010" => println!("st -Y, r{}", r),
+                    "10q0_qq1r_rrrr_1qqq" => println!("st Y+{}, r{}", q, r),
+                    "1001_0101_1010_1000" => println!("wdr"),
+                    "1001_000d_dddd_0000" => match iter.next() {
+                        Some((_, extension)) => println!(
+                            "lds r{}, {:#x}",
+                            d,
+                            u16::from_be_bytes([extension.0, extension.1])
+                        ),
+                        None => panic!("error, unexpected command"),
+                    },
+                    "1001_000d_dddd_0001" => println!("ld r{}, Z+", d),
+                    "1001_000d_dddd_0010" => println!("ld r{}, -Z", d),
+                    "1001_000d_dddd_0100" => println!("lpm r{}, Z", d),
+                    "1001_000d_dddd_0101" => println!("lpm r{}, -Z", d),
+                    "1001_000d_dddd_0110" => println!("elpm r{}, Z", d),
+                    "1001_000d_dddd_0111" => println!("elpm r{}, z+", d),
+                    "1001_000d_dddd_1001" => println!("ld r{}, Y+", d),
+                    "1001_000d_dddd_1010" => println!("ld r{}, -Y", d),
+                    "1001_000d_dddd_1100" => println!("ld r{}, X", d),
+                    "1001_000d_dddd_1101" => println!("ld r{}, X+", d),
+                    "1001_000d_dddd_1110" => println!("ld r{}, -X", d),
+                    "1001_000d_dddd_1111" => println!("pop r{}", d),
+                    "1001_001d_dddd_0000" => match iter.next() {
+                        Some((_, extension)) => println!(
+                            "sts {}, r{}",
+                            u16::from_be_bytes([extension.0, extension.1]),
+                            d
+                        ),
+                        None => panic!("error, unexpected command"),
+                    },
+                    "1001_001r_rrrr_0001" => println!("st Z+, r{}", r),
+                    "1001_001r_rrrr_0010" => println!("st -Z, r{}", r),
+                    "10q0_qq1r_rrrr_0qqq" => println!("st Z+{}, r{}", q, r),
+                    "1001_001r_rrrr_1100" => println!("st X, r{}", r),
+                    "1001_001r_rrrr_1101" => println!("st X+, r{}", r),
+                    "1001_001r_rrrr_1110" => println!("st X-, r{}", r),
+                    "1001_001d_dddd_1111" => println!("push r{}", d),
+                    "1001_010d_dddd_0000" => println!("com r{}", d),
+                    "1001_010d_dddd_0001" => println!("neg r{}", d),
+                    "1001_010d_dddd_0010" => println!("swap r{}", d),
+                    "1001_010d_dddd_0101" => println!("asr r{}", d),
+                    "1001_010d_dddd_0110" => println!("lsr r{}", d),
+                    "1001_0100_0000_1000" if cli.advanced => println!("sec"),
+                    "1001_0100_0001_1000" if cli.advanced => println!("sez"),
+                    "1001_0100_0010_1000" if cli.advanced => println!("sen"),
+                    "1001_0100_0011_1000" if cli.advanced => println!("sev"),
+                    "1001_0100_0100_1000" if cli.advanced => println!("ses"),
+                    "1001_0100_0101_1000" if cli.advanced => println!("seh"),
+                    "1001_0100_0110_1000" if cli.advanced => println!("set"),
+                    "1001_0100_0111_1000" if cli.advanced => println!("sei"),
+                    "1001_0100_0sss_1000" => println!("bset {}", s),
+                    "1001_0100_0000_1001" => println!("ijmp"),
+                    "1001_0100_0001_1001" => println!("eijmp"),
+                    "1001_0100_1sss_1000" => println!("bclr {}", s),
+                    "1001_0101_0000_1001" => println!("icall"),
+                    "1001_0101_1000_1000" => println!("sleep"),
+                    "1001_0101_1101_1000" => println!("elpm"),
+                    "1001_0101_1110_1000" => println!("spm"),
+                    "1001_010d_dddd_1010" => println!("dec r{}", d),
+                    "1001_010d_dddd_0011" => println!("inc r{}", d),
+                    "1001_010d_dddd_0111" => println!("ror r{}", d),
+                    "1001_0100_1000_1000" => println!("clc"),
+                    "1001_0100_1001_1000" => println!("clz"),
+                    "1001_0100_1010_1000" => println!("cln"),
+                    "1001_0100_1011_1000" => println!("clv"),
+                    "1001_0100_1100_1000" => println!("cls"),
+                    "1001_0100_1101_1000" => println!("clh"),
+                    "1001_0100_1110_1000" => println!("clt"),
+                    "1001_0100_1111_1000" => println!("cli"),
+                    "1001_0101_0001_1001" => println!("eicall"),
+                    "1001_0101_1100_1000" => println!("lpm"),
+                    "1001_010k_kkkk_110k" => match iter.next() {
+                        Some((_, extension)) => println!(
+                            "jmp {:#x} ; {:#x}",
+                            u32::from_be_bytes([0, k as u8, extension.0, extension.1]) * 2,
+                            u32::from_be_bytes([0, k as u8, extension.0, extension.1]) * 2
+                        ),
+                        None => panic!("error, unexpected command"),
+                    },
+                    "1001_010k_kkkk_111k" => match iter.next() {
+                        Some((_, extension)) => println!(
+                            "call {:#x} ; {:#x}",
+                            u32::from_be_bytes([0, k as u8, extension.0, extension.1]) * 2,
+                            u32::from_be_bytes([0, k as u8, extension.0, extension.1]) * 2
+                        ),
+                        None => panic!("error, unexpected command"),
+                    },
+                    "1001_0101_0000_1000" => println!("ret"),
+                    "1001_0101_0001_1000" => println!("reti"),
+                    "1001_0101_1001_1000" => println!("break"),
+                    "1001_0110_kkdd_kkkk" => println!("adiw r{}:{}, {}", d * 2 + 25, d * 2 + 24, k),
+                    "1001_0111_kkdd_kkkk" => println!("sbiw r{}:{}, {}", d * 2 + 25, d * 2 + 24, k),
+                    "1001_1000_aaaa_abbb" => println!("cbi {:#x}, {}", a, b),
+                    "1001_1001_aaaa_abbb" => println!("sbic {:#x}, {}", a, b),
+                    "1001_1010_aaaa_abbb" => println!("sbi {:#x}, {}", a, b),
+                    "1001_1011_aaaa_abbb" => println!("sbis {:#x}, {}", a, b),
+                    "1001_11rd_dddd_rrrr" => println!("mul r{}, r{}", d, r),
+                    "10q0_qq0d_dddd_0ddd" => println!("ld r{}, Z+{}", d, q),
+                    "10q0_qq0d_dddd_1qqq" => println!("ld r{}, Y+{}", d, q),
+                    "1011_0aad_dddd_aaaa" => println!("in r{}, {:#x}", d, a),
+                    "1011_1aar_rrrr_aaaa" => println!("out {:#x}, r{}", a, r),
+                    "1100_ekkk_kkkk_kkkk" => match e == 1 {
+                        true => println!(
+                            "rjmp .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "rjmp .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1101_ekkk_kkkk_kkkk" => match e == 1 {
+                        true => println!(
+                            "rcall .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "rcall .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1110_kkkk_dddd_kkkk" => match (k == u16::MAX) && cli.advanced {
+                        true => println!("ser r{}", d),
+                        false => println!("ldi r{}, {:#x}", d + 16, k),
+                    },
+                    "1111_00ek_kkkk_k000" if cli.overloads => match e == 1 {
+                        true => println!(
+                            "brcs .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brcs .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_00ek_kkkk_k001" if cli.advanced => match e == 1 {
+                        true => println!(
+                            "breq .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "breq .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_00ek_kkkk_k010" if cli.advanced => match e == 1 {
+                        true => println!(
+                            "brmi .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brmi .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_00ek_kkkk_k100" if cli.advanced => match e == 1 {
+                        true => println!(
+                            "brlt .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brlt .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_00ek_kkkk_k101" if cli.advanced => match e == 1 {
+                        true => println!(
+                            "brhs .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brhs .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_00ek_kkkk_k110" if cli.advanced => match e == 1 {
+                        true => println!(
+                            "brts .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brts .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_00ek_kkkk_k011" if cli.advanced => match e == 1 {
+                        true => println!(
+                            "brvs .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brvs .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_00ek_kkkk_k111" if cli.advanced => match e == 1 {
+                        true => println!(
+                            "brie .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brie .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_00ek_kkkk_ksss" => match e == 1 {
+                        true => println!(
+                            "brbs {}, .-{:#x} ; {:#x}",
+                            s,
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => {
+                            println!(
+                                "brbs {}, .{:#x} ; {:#x}",
+                                s,
+                                k * 2,
+                                data.address + (i as u16 + k) * 2
+                            )
+                        }
+                    },
+                    "1111_01ek_kkkk_k000" if cli.overloads => match e == 1 {
+                        true => println!(
+                            "brcc .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brcc .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_01ek_kkkk_k001" if cli.overloads => match e == 1 {
+                        true => println!(
+                            "brne .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brne .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_01ek_kkkk_k010" if cli.overloads => match e == 1 {
+                        true => println!(
+                            "brpl .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brpl .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_01ek_kkkk_k011" if cli.overloads => match e == 1 {
+                        true => println!(
+                            "brvc .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brvc .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_01ek_kkkk_k100" if cli.overloads => match e == 1 {
+                        true => println!(
+                            "brge .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => {
+                            println!(
+                                "brge .{:#x} ; {:#x}",
+                                k * 2,
+                                data.address + (i as u16 + k) * 2
+                            )
+                        }
+                    },
+                    "1111_01ek_kkkk_k110" if cli.overloads => match e == 1 {
+                        true => println!(
+                            "brtc .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => {
+                            println!(
+                                "brtc .{:#x} ; {:#x}",
+                                k * 2,
+                                (data.address + i as u16 + k) * 2
+                            )
+                        }
+                    },
+                    "1111_01ek_kkkk_k101" if cli.overloads => match e == 1 {
+                        true => println!(
+                            "brhc .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => {
+                            println!(
+                                "brhc .{:#x} ; {:#x}",
+                                k * 2,
+                                data.address + (i as u16 + k) * 2
+                            )
+                        }
+                    },
+                    "1111_01ek_kkkk_k111" if cli.overloads => match e == 1 {
+                        true => println!(
+                            "brid .-{:#x} ; {:#x}",
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => println!(
+                            "brid .{:#x} ; {:#x}",
+                            k * 2,
+                            data.address + (i as u16 + k) * 2
+                        ),
+                    },
+                    "1111_01ek_kkkk_ksss" => match e == 1 {
+                        true => println!(
+                            "brbc {}, .-{:#x} ; {:#x}",
+                            s,
+                            (!k + 1) * 2,
+                            data.address + (i as u16 - (!k + 1)) * 2
+                        ),
+                        false => {
+                            println!(
+                                "brbc {}, .{:#x} ; {:#x}",
+                                s,
+                                k * 2,
+                                data.address + (i as u16 + k) * 2
+                            )
+                        }
+                    },
+                    "1111_100d_dddd_0bbb" => println!("bld r{}, {}", d, b),
+                    "1111_101d_dddd_0bbb" => println!("bst r{}, {}", d, b),
+                    "1111_110r_rrrr_0bbb" => println!("sbrc r{}, {}", r, b),
+                    "1111_111r_rrrr_0bbb" => println!("sbrs r{}, {}", r, b),
+                    _ => panic!("error, unexpected command"),
                 };
             }
             None => break,
