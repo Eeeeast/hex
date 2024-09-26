@@ -1,5 +1,6 @@
 # Console disassembler
-## About the programme
+## About
+* Supports only many AVR microcontroller commands.
 * Accepts as input records that are ASCII strings consisting of several pairs of 16-character digits. Entries must begin with a colon character. The Intel HEX record format is used.
 * Use `--help` to get help.
 * The `-a` argument adds field values to each record.
