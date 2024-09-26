@@ -8,7 +8,7 @@
 * Example:
 `hex :100060000C943E000C943E0011241FBECFEFD8E04C :10007000DEBFCDBF0E9440000C9452000C940000E3`
 ## Installation
-* Install the Rust and Cargo compiler.
+* Install the Rust and Cargo.
 * Clone the repository.
 * `cd` into the repository and run the build command with the release flag.
 * After compilation, the executable will be available in `target\release`.
