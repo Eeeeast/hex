@@ -25,14 +25,14 @@ enum Index {
     LinearAdrres = 5,
 }
 
-struct Package {
+struct Record {
     address: u16,
     index: Index,
     data: Vec<(u8, u8)>,
     checksum: u8,
 }
 
-enum PackageParseError {
+enum RecordParseError {
     BeginningOfRecord,
     CalculatingTheSize,
     CalculatingTheAddress,
@@ -41,15 +41,15 @@ enum PackageParseError {
     CalculatingChecksum,
 }
 
-impl Package {
-    fn from_str(hex: &String) -> Result<Package, PackageParseError> {
+impl Record {
+    fn from_str(hex: &String) -> Result<Record, RecordParseError> {
         if &hex[0..1] != ":" {
-            return Err(PackageParseError::BeginningOfRecord);
+            return Err(RecordParseError::BeginningOfRecord);
         }
-        let mut data: Package = Package {
+        let mut data: Record = Record {
             address: match u16::from_str_radix(&hex[3..7], 16) {
                 Ok(content) => content,
-                _ => return Err(PackageParseError::CalculatingTheAddress),
+                _ => return Err(RecordParseError::CalculatingTheAddress),
             },
             index: match u8::from_str_radix(&hex[7..9], 16) {
                 Ok(content) => match content {
@@ -59,9 +59,9 @@ impl Package {
                     3 => Index::StartAddress80x86,
                     4 => Index::ExtendedAddress,
                     5 => Index::LinearAdrres,
-                    _ => return Err(PackageParseError::CalculatingIndex),
+                    _ => return Err(RecordParseError::CalculatingIndex),
                 },
-                _ => return Err(PackageParseError::CalculatingIndex),
+                _ => return Err(RecordParseError::CalculatingIndex),
             },
             data: vec![],
             checksum: 0,
@@ -69,17 +69,17 @@ impl Package {
         data.data
             .reserve(match usize::from_str_radix(&hex[1..3], 16) {
                 Ok(content) => content,
-                _ => return Err(PackageParseError::CalculatingTheSize),
+                _ => return Err(RecordParseError::CalculatingTheSize),
             });
         for i in (9..9 + (data.data.capacity() * 2)).step_by(4) {
             data.data.push((
                 match u8::from_str_radix(&hex[i + 2..i + 4], 16) {
                     Ok(content) => content,
-                    _ => return Err(PackageParseError::CalculatingData),
+                    _ => return Err(RecordParseError::CalculatingData),
                 },
                 match u8::from_str_radix(&hex[i..i + 2], 16) {
                     Ok(content) => content,
-                    _ => return Err(PackageParseError::CalculatingData),
+                    _ => return Err(RecordParseError::CalculatingData),
                 },
             ));
         }
@@ -88,13 +88,13 @@ impl Package {
             16,
         ) {
             Ok(content) => content,
-            _ => return Err(PackageParseError::CalculatingChecksum),
+            _ => return Err(RecordParseError::CalculatingChecksum),
         };
         Ok(data)
     }
 }
 
-impl fmt::Display for Package {
+impl fmt::Display for Record {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         let mut result = writeln!(
             f,
@@ -123,34 +123,34 @@ impl fmt::Display for Package {
 #[bitmatch]
 fn main() {
     let cli: Cli = Cli::parse();
-    for package in cli.hex {
-        let data = match Package::from_str(&package) {
+    for record in cli.hex {
+        let data = match Record::from_str(&record) {
             Ok(content) => content,
             Err(error) => {
                 match error {
-                    PackageParseError::BeginningOfRecord => {
+                    RecordParseError::BeginningOfRecord => {
                         panic!("Each record in the Intel HEX file must start with a colon")
                     }
-                    PackageParseError::CalculatingTheSize => {
+                    RecordParseError::CalculatingTheSize => {
                         panic!("Error when calculating the data size, you need one byte (two hexadecimal digits), which in decimal is between 0 and 255")
                     }
-                    PackageParseError::CalculatingTheAddress => {
+                    RecordParseError::CalculatingTheAddress => {
                         panic!("Error when calculating the starting address, data block which is 2 bytes and indicates the absolute position of the record data in the binary file")
                     }
-                    PackageParseError::CalculatingIndex => {
+                    RecordParseError::CalculatingIndex => {
                         panic!("The field type is expected to take the following values: 0, 1, 2, 3, 4, 5")
                     }
-                    PackageParseError::CalculatingData => {
+                    RecordParseError::CalculatingData => {
                         panic!("Error when reading data bytes for writing to EPROM, the number of bytes to be written is specified at the beginning, in the range from 0 to 255 bytes")
                     }
-                    PackageParseError::CalculatingChecksum => {
+                    RecordParseError::CalculatingChecksum => {
                         panic!("Error when reading the last byte of a record, a checksum calculated so that the sum of all bytes in the record is zero")
                     }
                 }
             }
         };
         if cli.advanced {
-            println!("{:?}", package);
+            println!("{:?}", record);
             println!("{}", data);
             println!();
         }
