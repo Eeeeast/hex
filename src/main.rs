@@ -179,7 +179,15 @@ fn main() {
                             true => println!("lsl r{}", d),
                             false => println!("add r{}, r{}", d, r),
                         },
-                        "0001_00rd_dddd_rrrr" => println!("cpse r{}, r{}", d, r),
+                        "0001_00rd_dddd_rrrr" => {
+                            println!(
+                                "cpse r{}, r{} ; {:#x} (or {:#x})",
+                                d,
+                                r,
+                                data.address + (i as u16 + 2) * 2,
+                                data.address + (i as u16 + 3) * 2
+                            )
+                        }
                         "0001_01rd_dddd_rrrr" => println!("cp r{}, r{}", d, r),
                         "0001_10rd_dddd_rrrr" => println!("sub r{}, r{}", d, r),
                         "0001_11rd_dddd_rrrr" => match (d == r) && cli.overloads {
@@ -302,9 +310,21 @@ fn main() {
                             println!("sbiw r{}:{}, {}", d * 2 + 25, d * 2 + 24, k)
                         }
                         "1001_1000_aaaa_abbb" => println!("cbi {:#x}, {}", a, b),
-                        "1001_1001_aaaa_abbb" => println!("sbic {:#x}, {}", a, b),
+                        "1001_1001_aaaa_abbb" => println!(
+                            "sbic {:#x}, {} ; {:#x} (or {:#x})",
+                            a,
+                            b,
+                            data.address + (i as u16 + 2) * 2,
+                            data.address + (i as u16 + 3) * 2
+                        ),
                         "1001_1010_aaaa_abbb" => println!("sbi {:#x}, {}", a, b),
-                        "1001_1011_aaaa_abbb" => println!("sbis {:#x}, {}", a, b),
+                        "1001_1011_aaaa_abbb" => println!(
+                            "sbis {:#x}, {} ; {:#x} (or {:#x})",
+                            a,
+                            b,
+                            data.address + (i as u16 + 2) * 2,
+                            data.address + (i as u16 + 3) * 2
+                        ),
                         "1001_11rd_dddd_rrrr" => println!("mul r{}, r{}", d, r),
                         "1011_0aad_dddd_aaaa" => println!("in r{}, {:#x}", d, a),
                         "1011_1aar_rrrr_aaaa" => println!("out {:#x}, r{}", a, r),
@@ -572,8 +592,20 @@ fn main() {
                         },
                         "1111_100d_dddd_0bbb" => println!("bld r{}, {}", d, b),
                         "1111_101d_dddd_0bbb" => println!("bst r{}, {}", d, b),
-                        "1111_110r_rrrr_0bbb" => println!("sbrc r{}, {}", r, b),
-                        "1111_111r_rrrr_0bbb" => println!("sbrs r{}, {}", r, b),
+                        "1111_110r_rrrr_0bbb" => println!(
+                            "sbrc r{}, {} ; {:#x} (or {:#x})",
+                            r,
+                            b,
+                            data.address + (i as u16 + 2) * 2,
+                            data.address + (i as u16 + 3) * 2
+                        ),
+                        "1111_111r_rrrr_0bbb" => println!(
+                            "sbrs r{}, {} ; {:#x} (or {:#x})",
+                            r,
+                            b,
+                            data.address + (i as u16 + 2) * 2,
+                            data.address + (i as u16 + 3) * 2
+                        ),
                         _ => panic!("error, unexpected command"),
                     };
                 }
