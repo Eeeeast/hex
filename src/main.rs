@@ -228,7 +228,7 @@ fn main() {
                                 d,
                                 u16::from_be_bytes([extension.0, extension.1])
                             ),
-                            _ => panic!("error, unexpected command"),
+                            _ => panic!("instruction lds was expected"),
                         },
                         "1001_000d_dddd_0001" => println!("ld r{}, Z+", d),
                         "1001_000d_dddd_0010" => println!("ld r{}, -Z", d),
@@ -248,7 +248,7 @@ fn main() {
                                 u16::from_be_bytes([extension.0, extension.1]),
                                 d
                             ),
-                            _ => panic!("error, unexpected command"),
+                            _ => panic!("instruction sts was expected"),
                         },
                         "1001_001r_rrrr_0001" => println!("st Z+, r{}", r),
                         "1001_001r_rrrr_0010" => println!("st -Z, r{}", r),
@@ -300,7 +300,7 @@ fn main() {
                                 u32::from_be_bytes([0, k as u8, extension.0, extension.1]) * 2,
                                 u32::from_be_bytes([0, k as u8, extension.0, extension.1]) * 2
                             ),
-                            _ => panic!("error, unexpected command"),
+                            _ => panic!("instruction jmp was expected"),
                         },
                         "1001_010k_kkkk_111k" => match iter.next() {
                             Some((_, extension)) => println!(
@@ -308,7 +308,7 @@ fn main() {
                                 u32::from_be_bytes([0, k as u8, extension.0, extension.1]) * 2,
                                 u32::from_be_bytes([0, k as u8, extension.0, extension.1]) * 2
                             ),
-                            _ => panic!("error, unexpected command"),
+                            _ => panic!("instruction call was expected"),
                         },
                         "1001_0110_kkdd_kkkk" => {
                             println!("adiw r{}:{}, {}", d * 2 + 25, d * 2 + 24, k)
