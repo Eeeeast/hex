@@ -1,6 +1,6 @@
 use bitmatch::bitmatch;
 use clap::Parser;
-use std::fmt;
+use std::{fmt, ops::BitXor};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -122,7 +122,7 @@ impl fmt::Display for Record {
 
 fn from_additional_code(sign: bool, number: u16, mask: u16) -> i16 {
     match sign {
-        true => ((!number + 1) & mask) as i16 * -1,
+        true => (number.bitxor(mask) + 1) as i16 * -1,
         false => number as i16,
     }
 }
