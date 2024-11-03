@@ -42,11 +42,11 @@ enum RecordParseError {
 }
 
 impl Record {
-    fn from_str(hex: &String) -> Result<Record, RecordParseError> {
+    fn from_str(hex: &String) -> Result<Self, RecordParseError> {
         if &hex[0..1] != ":" {
             return Err(RecordParseError::BeginningOfRecord);
         }
-        let mut data: Record = Record {
+        let mut data: Self = Record {
             address: match u16::from_str_radix(&hex[3..7], 16) {
                 Ok(content) => content,
                 _ => return Err(RecordParseError::CalculatingTheAddress),
