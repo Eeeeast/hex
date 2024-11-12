@@ -161,9 +161,6 @@ fn main() {
             println!("{}", data);
             println!();
         }
-        if data.data.len() == 0 {
-            return;
-        }
         let mut iter = data.data.into_iter().enumerate();
         loop {
             match iter.next() {
