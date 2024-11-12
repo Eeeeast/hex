@@ -164,8 +164,9 @@ fn main() {
         let mut iter = data.data.into_iter().enumerate();
         loop {
             match iter.next() {
-                Some((i, content)) => {
-                    print!("{:#x}: ", data.address + (i as u16) * 2);
+                Some((mut i, content)) => {
+                    i = i * 2 + data.address as usize;
+                    print!("{:#x}: ", i);
                     #[bitmatch]
                     match u16::from_be_bytes([content.0, content.1]) {
                         "0000_0000_0000_0000" => println!("nop"),
@@ -188,8 +189,8 @@ fn main() {
                                 "cpse r{}, r{} ; {:#x} (or {:#x})",
                                 d,
                                 r,
-                                data.address + (i as u16 + 2) * 2,
-                                data.address + (i as u16 + 3) * 2
+                                i + 2 * 2,
+                                i + 3 * 2
                             )
                         }
                         "0001_01rd_dddd_rrrr" => println!("cp r{}, r{}", d, r),
@@ -318,16 +319,16 @@ fn main() {
                             "sbic {:#x}, {} ; {:#x} (or {:#x})",
                             a,
                             b,
-                            data.address + (i as u16 + 2) * 2,
-                            data.address + (i as u16 + 3) * 2
+                            i + 2 * 2,
+                            i + 3 * 2
                         ),
                         "1001_1010_aaaa_abbb" => println!("sbi {:#x}, {}", a, b),
                         "1001_1011_aaaa_abbb" => println!(
                             "sbis {:#x}, {} ; {:#x} (or {:#x})",
                             a,
                             b,
-                            data.address + (i as u16 + 2) * 2,
-                            data.address + (i as u16 + 3) * 2
+                            i + 2 * 2,
+                            i + 3 * 2
                         ),
                         "1001_11rd_dddd_rrrr" => println!("mul r{}, r{}", d, r),
                         "1011_0aad_dddd_aaaa" => println!("in r{}, {:#x}", d, a),
@@ -339,16 +340,14 @@ fn main() {
                         "1100_ekkk_kkkk_kkkk" => println!(
                             "rjmp .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0111_1111_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0111_1111_1111) * 2
                                 + 2
                         ),
                         "1101_ekkk_kkkk_kkkk" => println!(
                             "rcall .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0111_1111_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0111_1111_1111) * 2
                                 + 2
                         ),
@@ -359,64 +358,56 @@ fn main() {
                         "1111_00ek_kkkk_k000" if cli.overloads => println!(
                             "brcs .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_00ek_kkkk_k001" if cli.overloads => println!(
                             "breq .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_00ek_kkkk_k010" if cli.overloads => println!(
                             "brmi .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_00ek_kkkk_k011" if cli.overloads => println!(
                             "brvs .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_00ek_kkkk_k100" if cli.overloads => println!(
                             "brlt .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_00ek_kkkk_k101" if cli.overloads => println!(
                             "brhs .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_00ek_kkkk_k110" if cli.overloads => println!(
                             "brts .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_00ek_kkkk_k111" if cli.overloads => println!(
                             "brie .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
@@ -424,72 +415,63 @@ fn main() {
                             "brbs {}, .{:+} ; {:#x}",
                             s,
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_01ek_kkkk_k000" if cli.overloads => println!(
                             "brcc .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_01ek_kkkk_k001" if cli.overloads => println!(
                             "brne .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_01ek_kkkk_k010" if cli.overloads => println!(
                             "brpl .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_01ek_kkkk_k011" if cli.overloads => println!(
                             "brvc .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_01ek_kkkk_k100" if cli.overloads => println!(
                             "brge .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_01ek_kkkk_k101" if cli.overloads => println!(
                             "brhc .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_01ek_kkkk_k110" if cli.overloads => println!(
                             "brtc .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
                         "1111_01ek_kkkk_k111" if cli.overloads => println!(
                             "brid .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
@@ -497,8 +479,7 @@ fn main() {
                             "brid {}, .{:+} ; {:#x}",
                             s,
                             from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2,
-                            data.address as i16
-                                + i as i16 * 2
+                            i as i16
                                 + from_additional_code(e == 1, k, 0b0000_0000_0011_1111) * 2
                                 + 2
                         ),
@@ -508,15 +489,15 @@ fn main() {
                             "sbrc r{}, {} ; {:#x} (or {:#x})",
                             r,
                             b,
-                            data.address + (i as u16 + 2) * 2,
-                            data.address + (i as u16 + 3) * 2
+                            i + 2 * 2,
+                            i + 3 * 2
                         ),
                         "1111_111r_rrrr_0bbb" => println!(
                             "sbrs r{}, {} ; {:#x} (or {:#x})",
                             r,
                             b,
-                            data.address + (i as u16 + 2) * 2,
-                            data.address + (i as u16 + 3) * 2
+                            i + 2 * 2,
+                            i + 3 * 2
                         ),
                         _ => panic!("error, unexpected command"),
                     };
