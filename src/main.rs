@@ -1,6 +1,9 @@
 use bitmatch::bitmatch;
 use clap::Parser;
-use std::{fmt, ops::BitXor};
+use std::{
+    fmt::{self, Debug},
+    ops::BitXor,
+};
 
 #[derive(Parser, Debug)]
 #[command(version, about)]
@@ -15,7 +18,7 @@ struct Cli {
     overloads: bool,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Index {
     Data = 0,
     End = 1,
@@ -29,7 +32,6 @@ struct Record {
     address: u16,
     index: Index,
     data: Vec<(u8, u8)>,
-    checksum: u8,
 }
 
 enum RecordParseError {
@@ -64,7 +66,6 @@ impl Record {
                 _ => return Err(RecordParseError::CalculatingIndex),
             },
             data: vec![],
-            checksum: 0,
         };
         data.data
             .reserve(match usize::from_str_radix(&hex[1..3], 16) {
@@ -83,14 +84,13 @@ impl Record {
                 },
             ));
         }
-        data.checksum = match u8::from_str_radix(
+        match u8::from_str_radix(
             &hex[9 + data.data.len() * 4..9 + data.data.len() * 4 + 2],
             16,
         ) {
-            Ok(content) => content,
+            Ok(_) => Ok(data),
             _ => return Err(RecordParseError::CalculatingChecksum),
-        };
-        Ok(data)
+        }
     }
 }
 
@@ -113,9 +113,6 @@ impl fmt::Display for Record {
                 }
             }
         }
-        if result == Ok(()) {
-            result = write!(f, "checksum: {}", self.checksum);
-        }
         result
     }
 }
@@ -130,8 +127,9 @@ fn from_additional_code(sign: bool, number: u16, mask: u16) -> i16 {
 #[bitmatch]
 fn main() {
     let cli: Cli = Cli::parse();
+    let mut records: Vec<Record> = vec![];
     for record in cli.hex {
-        let data = match Record::from_str(&record) {
+        let mut data = match Record::from_str(&record) {
             Ok(content) => content,
             Err(error) => {
                 match error {
@@ -156,10 +154,22 @@ fn main() {
                 }
             }
         };
+        match records.last_mut() {
+            Some(record) => {
+                if ((record.address + record.data.len() as u16 * 2) == data.address)
+                    && (record.index == data.index)
+                {
+                    record.data.append(&mut data.data);
+                } else {
+                    records.push(data);
+                }
+            }
+            None => records.push(data),
+        };
+    }
+    for data in records {
         if cli.advanced {
-            println!("{:?}", record);
             println!("{}", data);
-            println!();
         }
         let mut iter = data.data.into_iter().enumerate();
         loop {
@@ -184,15 +194,13 @@ fn main() {
                             true => println!("lsl r{}", d),
                             false => println!("add r{}, r{}", d, r),
                         },
-                        "0001_00rd_dddd_rrrr" => {
-                            println!(
-                                "cpse r{}, r{} ; {:#x} (or {:#x})",
-                                d,
-                                r,
-                                i + 2 * 2,
-                                i + 3 * 2
-                            )
-                        }
+                        "0001_00rd_dddd_rrrr" => println!(
+                            "cpse r{}, r{} ; {:#x} (or {:#x})",
+                            d,
+                            r,
+                            i + 2 * 2,
+                            i + 3 * 2
+                        ),
                         "0001_01rd_dddd_rrrr" => println!("cp r{}, r{}", d, r),
                         "0001_10rd_dddd_rrrr" => println!("sub r{}, r{}", d, r),
                         "0001_11rd_dddd_rrrr" => match (d == r) && cli.overloads {
@@ -499,7 +507,10 @@ fn main() {
                             i + 2 * 2,
                             i + 3 * 2
                         ),
-                        _ => panic!("error, unexpected command"),
+                        _ => panic!(
+                            "error, unexpected command (0b{:0>8b}_{:0>8b})",
+                            content.0, content.1
+                        ),
                     };
                 }
                 _ => break,
