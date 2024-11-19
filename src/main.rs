@@ -343,8 +343,8 @@ fn main() {
                         "1011_1aar_rrrr_aaaa" => println!("out {:#x}, r{}", a, r),
                         "10q0_qq1r_rrrr_0qqq" => println!("st Z+{}, r{}", q, r),
                         "10q0_qq1r_rrrr_1qqq" => println!("st Y+{}, r{}", q, r),
-                        "10q0_qq0d_dddd_0ddd" => println!("ld r{}, Z+{}", d, q),
-                        "10q0_qq0d_dddd_1qqq" => println!("ld r{}, Y+{}", d, q),
+                        "10q0_qq0d_dddd_0qqq" => println!("ldd r{}, Z+{}", d, q),
+                        "10q0_qq0d_dddd_1qqq" => println!("ldd r{}, Y+{}", d, q),
                         "1100_ekkk_kkkk_kkkk" => println!(
                             "rjmp .{:+} ; {:#x}",
                             from_additional_code(e == 1, k, 0b0000_0111_1111_1111) * 2,
