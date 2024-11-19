@@ -341,8 +341,8 @@ fn main() {
                         "1001_11rd_dddd_rrrr" => println!("mul r{}, r{}", d, r),
                         "1011_0aad_dddd_aaaa" => println!("in r{}, {:#x}", d, a),
                         "1011_1aar_rrrr_aaaa" => println!("out {:#x}, r{}", a, r),
-                        "10q0_qq1r_rrrr_0qqq" => println!("st Z+{}, r{}", q, r),
-                        "10q0_qq1r_rrrr_1qqq" => println!("st Y+{}, r{}", q, r),
+                        "10q0_qq1r_rrrr_0qqq" => println!("std Z+{}, r{}", q, r),
+                        "10q0_qq1r_rrrr_1qqq" => println!("std Y+{}, r{}", q, r),
                         "10q0_qq0d_dddd_0qqq" => println!("ldd r{}, Z+{}", d, q),
                         "10q0_qq0d_dddd_1qqq" => println!("ldd r{}, Y+{}", d, q),
                         "1100_ekkk_kkkk_kkkk" => println!(
