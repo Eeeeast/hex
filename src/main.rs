@@ -217,7 +217,7 @@ fn main() {
                         },
                         "0010_10rd_dddd_rrrr" => println!("or r{}, r{}", d, r),
                         "0010_11rd_dddd_rrrr" => println!("mov r{}, r{}", d, r),
-                        "0011_kkkk_dddd_kkkk" => println!("cpi, r{}, {}", d + 16, k),
+                        "0011_kkkk_dddd_kkkk" => println!("cpi r{}, {}", d + 16, k),
                         "0100_kkkk_dddd_kkkk" => println!("sbci r{}, {}", d + 16, k),
                         "0101_kkkk_dddd_kkkk" => println!("subi r{}, {:#x}", d + 16, k),
                         "0110_kkkk_dddd_kkkk" => println!("ori r{}, {:#x}", d + 16, k),
