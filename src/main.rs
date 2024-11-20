@@ -239,7 +239,7 @@ fn main() {
                         "1001_000d_dddd_0001" => println!("ld r{}, Z+", d),
                         "1001_000d_dddd_0010" => println!("ld r{}, -Z", d),
                         "1001_000d_dddd_0100" => println!("lpm r{}, Z", d),
-                        "1001_000d_dddd_0101" => println!("lpm r{}, -Z", d),
+                        "1001_000d_dddd_0101" => println!("lpm r{}, Z+", d),
                         "1001_000d_dddd_0110" => println!("elpm r{}, Z", d),
                         "1001_000d_dddd_0111" => println!("elpm r{}, z+", d),
                         "1001_000d_dddd_1001" => println!("ld r{}, Y+", d),
